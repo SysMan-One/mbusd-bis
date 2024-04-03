@@ -61,8 +61,8 @@ int tty_reopen()
   {
 #ifdef LOG
     logw(0, "tty_reopen():"
-           " can't open tty device %s (%s)",
-           cfg.ttyport, strerror(errno));
+	   " can't open tty device %s (%s)",
+	   cfg.ttyport, strerror(errno));
 #endif
     return RC_ERR;
   }
@@ -88,17 +88,17 @@ void tty_reinit()
  * Parameters: none
  * Return: RC_OK in case of success, RC_ERR otherwise
  */
-int
-conn_init(void)
+int conn_init(void)
 {
   /* tty device initialization */
   tty_init(&tty);
+
   if (tty_open(&tty) != RC_OK)
   {
 #ifdef LOG
     logw(0, "conn_init():"
-           " can't open tty device %s (%s)",
-           cfg.ttyport, strerror(errno));
+	   " can't open tty device %s (%s)",
+	   cfg.ttyport, strerror(errno));
 #endif
     return RC_ERR;
   }
@@ -109,8 +109,8 @@ conn_init(void)
   {
 #ifdef LOG
     logw(0, "conn_init():"
-           " can't create listen socket (%s)",
-           (errno != 0) ? strerror(errno) : "failed");
+	   " can't create listen socket (%s)",
+	   (errno != 0) ? strerror(errno) : "failed");
 #endif
     return RC_ERR;
   }
@@ -126,16 +126,15 @@ conn_init(void)
  * Parameters: none
  * Return: none
  */
-void
-conn_open(void)
+void conn_open(void)
 {
-  int sd;
-  conn_t *newconn;
-  struct sockaddr_storage rmt_addr;
-  char ipstr[INET6_ADDRSTRLEN];
+int sd;
+conn_t *newconn;
+struct sockaddr_storage rmt_addr;
+char ipstr[INET6_ADDRSTRLEN] = {0};
 
   if ((sd = sock_accept(server_sd, (struct sockaddr *)&rmt_addr,
-                        sizeof(rmt_addr), TRUE)) == RC_ERR)
+			sizeof(rmt_addr), TRUE)) == RC_ERR)
   { /* error in conn_accept() */
 #ifdef LOG
     logw(0, "conn_open(): error in accept() (%s)", strerror(errno));
@@ -143,7 +142,7 @@ conn_open(void)
     return;
   }
  inet_ntop(rmt_addr.ss_family, sock_addr((struct sockaddr *)&rmt_addr),
-           ipstr, sizeof(ipstr));
+	   ipstr, sizeof(ipstr));
 #ifdef LOG
   logw(2, "conn_open(): accepting connection from %s", ipstr);
 #endif
@@ -152,7 +151,7 @@ conn_open(void)
   {
 #ifdef LOG
     logw(1, "conn_open(): FD_SETSIZE limit reached,"
-           " connection from %s will be dropped", ipstr);
+	   " connection from %s will be dropped", ipstr);
 #endif
     close(sd);
     return;
@@ -162,7 +161,7 @@ conn_open(void)
   {
 #ifdef LOG
     logw(1, "conn_open(): number of connections limit reached,"
-           " connection from %s will be dropped", ipstr);
+	   " connection from %s will be dropped", ipstr);
 #endif
     close(sd);
     return;
@@ -179,8 +178,7 @@ conn_open(void)
  * Parameters: CONN - ptr to connection to close
  * Return: pointer to next queue element
  */
-conn_t *
-conn_close(conn_t *conn)
+conn_t *conn_close(conn_t *conn)
 {
   conn_t *nextconn;
 #ifdef LOG
@@ -203,12 +201,11 @@ conn_close(conn_t *conn)
  *             CONN - ptr to active connection
  * Return: none
  */
-void
-conn_tty_start(ttydata_t *tty, conn_t *conn)
+void conn_tty_start(ttydata_t *tty, conn_t *conn)
 {
   (void)memcpy((void *)tty->txbuf,
-               (void *)(conn->buf + HDRSIZE),
-               MB_FRAME(conn->buf, MB_LENGTH_L));
+	       (void *)(conn->buf + HDRSIZE),
+	       MB_FRAME(conn->buf, MB_LENGTH_L));
   modbus_crc_write(tty->txbuf, MB_FRAME(conn->buf, MB_LENGTH_L));
   tty->txlen = MB_FRAME(conn->buf, MB_LENGTH_L) + CRCSIZE;
   state_tty_set(tty, TTY_RQST);
@@ -220,15 +217,15 @@ conn_tty_start(ttydata_t *tty, conn_t *conn)
  * Return: number of successfully read bytes,
  *         RC_ERR in case of error.
  */
-ssize_t
-conn_read(int d, void *buf, size_t nbytes)
+ssize_t conn_read(int d, void *buf, size_t nbytes)
 {
-  int rc;
-  do
-  { /* trying read from descriptor while breaked by signals */
-    rc = read(d, buf, nbytes);
-  } while (rc == -1 && errno == EINTR);
-  return (rc < 0) ? (errno == EAGAIN ? RC_EAGAIN : RC_ERR) : rc;
+int rc;
+
+	do { /* trying read from descriptor while breaked by signals */
+		rc = read(d, buf, nbytes);
+	} while (rc == -1 && errno == EINTR);
+
+	return (rc < 0) ? (errno == EAGAIN ? RC_EAGAIN : RC_ERR) : rc;
 }
 
 #include <stdio.h>
@@ -240,81 +237,61 @@ conn_read(int d, void *buf, size_t nbytes)
  * Return: number of successfully written bytes,
  *         RC_ERR in case of error.
  */
-ssize_t
-conn_write(int d, void *buf, size_t nbytes, int istty)
+ssize_t conn_write(int d, void *buf, size_t nbytes, int istty)
 {
-  int rc;
-  fd_set fs;
-  struct timeval ts, tts;
-  long delay;
+int rc;
+fd_set fs;
+struct timeval ts, tts;
+long delay;
 
 #ifdef TRXCTL
-  if (istty && cfg.trxcntl != TRX_ADDC)
-  {
-    tty_set_tx(d);
-    tty_delay(35000000l/cfg.ttyspeed);
-  }
+	if (istty && cfg.trxcntl != TRX_ADDC)
+		{
+		tty_set_tx(d);
+		tty_delay(35000000l/cfg.ttyspeed);
+		}
 #endif
 
-  FD_ZERO(&fs);
-  FD_SET(d, &fs);
-  do
-  {
-    rc = write(d, buf, nbytes);
-  } while (rc == -1 && errno == EINTR);
+	FD_ZERO(&fs);
+	FD_SET(d, &fs);
+	do {
+		rc = write(d, buf, nbytes);
+	} while (rc == -1 && errno == EINTR);
 
 #ifdef TRXCTL
-  if (istty && cfg.trxcntl != TRX_ADDC )
-  {
-    tty_delay(DV(nbytes, tty.bpc, cfg.ttyspeed));
-    tty_set_rx(d);
-  }
+	if (istty && cfg.trxcntl != TRX_ADDC )
+		{
+		tty_delay(DV(nbytes, tty.bpc, cfg.ttyspeed));
+		tty_set_rx(d);
+		}
 #endif
 
-  return (rc < 0) ? RC_ERR : rc;
+	return (rc < 0) ? RC_ERR : rc;
 }
-
-#if 0
-/*
- * Select() wrapper with signal checking.
- * Return: number number of ready descriptors,
- *         RC_ERR in case of error.
- */
-int
-conn_select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
-            struct timeval *timeout)
-{
-  int rc;
-  do
-  { /* trying to select() while breaked by signals */
-    rc = select(nfds, readfds, writefds, exceptfds, timeout);
-  } while (rc == -1 && errno == EINTR);
-  return (rc < 0) ? RC_ERR : rc;
-}
-#endif
 
 /*
  * Connections serving loop
  * Parameters: none
  * Return: none
  */
-void
-conn_loop(void)
+void conn_loop(void)
 {
-  int rc, max_sd, len, min_timeout;
-  unsigned int i;
-  fd_set sdsetrd, sdsetwr;
-  struct timeval ts, tts, t_out;
-  unsigned long tval, tout_sec, tout = 0ul;
-  conn_t *curconn = NULL;
+int rc, max_sd, len, min_timeout;
+unsigned int i;
+fd_set sdsetrd, sdsetwr;
+struct timeval ts, tts, t_out;
+unsigned long tval, tout_sec, tout = 0ul;
+conn_t *curconn = NULL;
+
 #ifdef DEBUG
-  char t[1025], v[5];
+char t[1025], v[5];
 #endif
 
   while (TRUE)
   {
     /* check for the signals */
-    if (sig_flag) sig_exec();
+    if (sig_flag)
+	    sig_exec();
 
     /* update FD_SETs */
     FD_ZERO(&sdsetrd);
@@ -326,19 +303,20 @@ conn_loop(void)
     len = queue.len;
     curconn = queue.beg;
     min_timeout = cfg.conntimeout;
+
     while (len--)
     {
       switch (curconn->state)
       {
-        case CONN_HEADER:
-        case CONN_RQST_FUNC:
-        case CONN_RQST_NVAL:
-        case CONN_RQST_TAIL:
-          FD_MSET(curconn->sd, &sdsetrd);
-          break;
-        case CONN_RESP:
-          FD_MSET(curconn->sd, &sdsetwr);
-          break;
+	case CONN_HEADER:
+	case CONN_RQST_FUNC:
+	case CONN_RQST_NVAL:
+	case CONN_RQST_TAIL:
+	  FD_MSET(curconn->sd, &sdsetrd);
+	  break;
+	case CONN_RESP:
+	  FD_MSET(curconn->sd, &sdsetwr);
+	  break;
       }
       min_timeout = MIN(min_timeout, curconn->timeout);
       curconn = queue_next_elem(&queue, curconn);
@@ -346,7 +324,8 @@ conn_loop(void)
 
     /* update FD_SETs by tty connection */
     FD_MSET(tty.fd, &sdsetrd);
-    if (tty.state == TTY_RQST) FD_MSET(tty.fd, &sdsetwr);
+    if (tty.state == TTY_RQST)
+	    FD_MSET(tty.fd, &sdsetwr);
 
     if (tty.timer)
     { /* tty.timer is non-zero in TTY_PAUSE, TTY_RESP states */
@@ -357,16 +336,16 @@ conn_loop(void)
     {
       t_out.tv_usec = 0ul;
       if (cfg.conntimeout)
-        t_out.tv_sec = min_timeout; /* minor timeout value */
+	t_out.tv_sec = min_timeout; /* minor timeout value */
       else
-        t_out.tv_sec = 10ul; /* XXX default timeout value */
+	t_out.tv_sec = 10ul; /* XXX default timeout value */
     }
 
     (void)gettimeofday(&ts, NULL); /* make timestamp */
 
 #ifdef DEBUG
     logw(7, "conn_loop(): select(): max_sd = %d, t_out = %06lu:%06lu ",
-           max_sd, t_out.tv_sec, t_out.tv_usec);
+	   max_sd, t_out.tv_sec, t_out.tv_usec);
 #endif
     rc = select(max_sd + 1, &sdsetrd, &sdsetwr, NULL, &t_out);
 #ifdef DEBUG
@@ -385,119 +364,121 @@ conn_loop(void)
     /* calculating elapsed time */
     (void)gettimeofday(&tts, NULL);
     tval = 1000000ul * (tts.tv_sec - ts.tv_sec) +
-                       (tts.tv_usec - ts.tv_usec);
+		       (tts.tv_usec - ts.tv_usec);
 
     /* modify tty timer */
     if (tty.timer)
     { /* tty timer is active */
       if (tty.timer <= tval)
-        switch (tty.state)
-        { /* timer expired */
-          case TTY_PAUSE:
-            /* inter-request pause elapsed */
-            /* looking for connections in CONN_TTY state */
-            curconn = state_conn_search(&queue, actconn, CONN_TTY);
-            if (curconn != NULL)
-              conn_tty_start(&tty, curconn);
-            else
-              state_tty_set(&tty, TTY_READY);
-            break;
-          case TTY_RESP:
-          case TTY_PROC:
-            /* checking for received data */
-            if (FD_ISSET(tty.fd, &sdsetrd)) break;
-            /* response timeout handling */
-            if (!tty.ptrbuf)
-            {/* there no bytes received */
+	switch (tty.state)
+	{ /* timer expired */
+	  case TTY_PAUSE:
+	    /* inter-request pause elapsed */
+	    /* looking for connections in CONN_TTY state */
+	    curconn = state_conn_search(&queue, actconn, CONN_TTY);
+	    if (curconn != NULL)
+	      conn_tty_start(&tty, curconn);
+	    else
+	      state_tty_set(&tty, TTY_READY);
+	    break;
+	  case TTY_RESP:
+	  case TTY_PROC:
+	    /* checking for received data */
+	    if (FD_ISSET(tty.fd, &sdsetrd)) break;
+	    /* response timeout handling */
+	    if (!tty.ptrbuf)
+	    {/* there no bytes received */
 #ifdef DEBUG
-              logw(5, "tty: response timeout", tty.ptrbuf);
+	      logw(5, "tty: response timeout", tty.ptrbuf);
 #endif
-              if (!tty.trynum)
-                modbus_ex_write(actconn->buf, MB_EX_TIMEOUT);
-              else
-              { /* retry request */
+	      if (!tty.trynum)
+		modbus_ex_write(actconn->buf, MB_EX_TIMEOUT);
+	      else
+	      { /* retry request */
 #ifdef DEBUG
-                logw(5, "tty: attempt to retry request (%u of %u)",
-                       cfg.maxtry - tty.trynum + 1, cfg.maxtry);
+		logw(5, "tty: attempt to retry request (%u of %u)",
+		       cfg.maxtry - tty.trynum + 1, cfg.maxtry);
 #endif
-                state_tty_set(&tty, TTY_RQST);
-                FD_SET(tty.fd, &sdsetwr);
-                break;
-              }
-            }
-            else
-            { /* some data received */
+		state_tty_set(&tty, TTY_RQST);
+		FD_SET(tty.fd, &sdsetwr);
+		break;
+	      }
+	    }
+	    else
+	    { /* some data received */
 #ifdef DEBUG
-              logw(5, "tty: response read (total %d bytes, offset %d bytes)", tty.ptrbuf, tty.rxoffset);
+	      logw(5, "tty: response read (total %d bytes, offset %d bytes)", tty.ptrbuf, tty.rxoffset);
 #endif
-              /* Check if there is enough data for an error response
-                  and if the error flag is set in the function code */
-              if ((tty.ptrbuf >= MB_ERR_LEN) &&
-                  (tty.rxbuf[tty.rxoffset+TTY_FCODE_IDX] & TTY_ERR_MASK))
-              {
-                /* This is an error response, set the length to
-		             5 (1 + 1 + 1 + 2) = Slave Address + Function Code + Error Code + CRC */
-                tty.ptrbuf = MB_ERR_LEN;
-              }
-              if (tty.ptrbuf >= MB_MIN_LEN &&
-                     modbus_crc_correct(tty.rxbuf + tty.rxoffset, tty.ptrbuf - tty.rxoffset))
-              { /* received response is correct, make OpenMODBUS response */
+	      /* Check if there is enough data for an error response
+		  and if the error flag is set in the function code */
+	      if ((tty.ptrbuf >= MB_ERR_LEN) &&
+		  (tty.rxbuf[tty.rxoffset+TTY_FCODE_IDX] & TTY_ERR_MASK))
+	      {
+		/* This is an error response, set the length to
+			     5 (1 + 1 + 1 + 2) = Slave Address + Function Code + Error Code + CRC */
+		tty.ptrbuf = MB_ERR_LEN;
+	      }
+	      if (tty.ptrbuf >= MB_MIN_LEN &&
+		     modbus_crc_correct(tty.rxbuf + tty.rxoffset, tty.ptrbuf - tty.rxoffset))
+	      { /* received response is correct, make OpenMODBUS response */
 #ifdef DEBUG
-                logw(5, "tty: response is correct");
-                // Optionally print the correct packet data
-                t[0] = '\0';
-                for (i = 0; i < tty.ptrbuf; i++) {
-                  sprintf(v, "[%2.2x]", tty.rxbuf[i]);
-                  strncat(t, v, 1024-strlen(t));
-                }
-                logw(9, "tty: response: %s", t);
+		logw(5, "tty: response is correct");
+		// Optionally print the correct packet data
+		t[0] = '\0';
+		for (i = 0; i < tty.ptrbuf; i++)
+			{
+		  sprintf(v, "[%2.2x]", tty.rxbuf[i]);
+		  strncat(t, v, 1024-strlen(t));
+		}
+		logw(9, "tty: response: %s", t);
 #endif
-                (void)memcpy((void *)(actconn->buf + HDRSIZE),
-                             (void *)(tty.rxbuf + tty.rxoffset), tty.ptrbuf - CRCSIZE - tty.rxoffset);
-                WORD_WR_BE(actconn->buf + MB_LENGTH_H, tty.ptrbuf - CRCSIZE - tty.rxoffset);
-              }
-              else
-              {
-                /* received response is incomplete or CRC failed */
+		(void)memcpy((void *)(actconn->buf + HDRSIZE),
+			     (void *)(tty.rxbuf + tty.rxoffset), tty.ptrbuf - CRCSIZE - tty.rxoffset);
+		WORD_WR_BE(actconn->buf + MB_LENGTH_H, tty.ptrbuf - CRCSIZE - tty.rxoffset);
+	      }
+	      else
+	      {
+		/* received response is incomplete or CRC failed */
 #ifdef DEBUG
-                t[0] = '\0';
-                for (i = 0; i < tty.ptrbuf; i++) {
-                  sprintf(v, "[%2.2x]", tty.rxbuf[i]);
-                  strncat(t, v, 1024-strlen(t));
-                }
-                logw(5, "tty: response is incorrect: %s", t);
+		t[0] = '\0';
+		for (i = 0; i < tty.ptrbuf; i++)
+			{
+		  sprintf(v, "[%2.2x]", tty.rxbuf[i]);
+		  strncat(t, v, 1024-strlen(t));
+		}
+		logw(5, "tty: response is incorrect: %s", t);
 #endif
-                if (!tty.trynum) {
-                  modbus_ex_write(actconn->buf, MB_EX_CRC);
+		if (!tty.trynum) {
+		  modbus_ex_write(actconn->buf, MB_EX_CRC);
 #ifdef DEBUG
-                  logw(3, "tty: response is incorrect (%d of %d bytes, offset %d), return error", tty.ptrbuf,
-                    tty.rxoffset + tty.rxlen, tty.rxoffset);
+		  logw(3, "tty: response is incorrect (%d of %d bytes, offset %d), return error", tty.ptrbuf,
+		    tty.rxoffset + tty.rxlen, tty.rxoffset);
 #endif
-                } else
-                { /* retry request */
+		} else
+		{ /* retry request */
 #ifdef DEBUG
-                  logw(5, "tty: attempt to retry request (%u of %u)",
-                         cfg.maxtry - tty.trynum + 1, cfg.maxtry);
+		  logw(5, "tty: attempt to retry request (%u of %u)",
+			 cfg.maxtry - tty.trynum + 1, cfg.maxtry);
 #endif
-                  state_tty_set(&tty, TTY_RQST);
-                  FD_SET(tty.fd, &sdsetwr);
-                  break;
-                }
-              }
-            }
-            /* switch connection to response state */
-            state_conn_set(actconn, CONN_RESP);
-            /* make inter-request pause */
-            state_tty_set(&tty, TTY_PAUSE);
-            break;
-          case TTY_RQST:
+		  state_tty_set(&tty, TTY_RQST);
+		  FD_SET(tty.fd, &sdsetwr);
+		  break;
+		}
+	      }
+	    }
+	    /* switch connection to response state */
+	    state_conn_set(actconn, CONN_RESP);
+	    /* make inter-request pause */
+	    state_tty_set(&tty, TTY_PAUSE);
+	    break;
+	  case TTY_RQST:
 #ifdef DEBUG
-            logw(5, "tty: TTY_RQST timeout");
+	    logw(5, "tty: TTY_RQST timeout");
 #endif
 	    break;
-        }
+	}
       else
-        tty.timer -= tval;
+	tty.timer -= tval;
     }
 
     if (cfg.conntimeout)
@@ -506,30 +487,31 @@ conn_loop(void)
       tout_sec = tout / 1000000ul;
       if (tout_sec)
       { /* at least one second elapsed, check for staled connections */
-        len = queue.len;
-        curconn = queue.beg;
-        while (len--)
-        {
-          curconn->timeout -= tout_sec;
-          if (curconn->timeout <= 0)
-          { /* timeout expired */
-            if (curconn->state == CONN_TTY)
-            { /* deadlock in CONN_TTY state, make attempt to reinitialize serial port */
+	len = queue.len;
+	curconn = queue.beg;
+
+	while (len--)
+	{
+	  curconn->timeout -= tout_sec;
+	  if (curconn->timeout <= 0)
+	  { /* timeout expired */
+	    if (curconn->state == CONN_TTY)
+	    { /* deadlock in CONN_TTY state, make attempt to reinitialize serial port */
 #ifdef LOG
-              logw(0, "conn[%s]: state CONN_TTY deadlock.", curconn->remote_addr);
+	      logw(0, "conn[%s]: state CONN_TTY deadlock.", curconn->remote_addr);
 #endif
-              tty_reinit();
-            }
-            /* purge connection */
+	      tty_reinit();
+	    }
+	    /* purge connection */
 #ifdef LOG
-            logw(2, "conn[%s]: timeout, closing connection", curconn->remote_addr);
+	    logw(2, "conn[%s]: timeout, closing connection", curconn->remote_addr);
 #endif
-            curconn = conn_close(curconn);
-            continue;
-          }
-          curconn = queue_next_elem(&queue, curconn);
-        }
-        tout = tout % 1000000ul;
+	    curconn = conn_close(curconn);
+	    continue;
+	  }
+	  curconn = queue_next_elem(&queue, curconn);
+	}
+	tout = tout % 1000000ul;
       }
     }
 
@@ -540,170 +522,170 @@ conn_loop(void)
     if (tty.state == TTY_RQST)
       if (FD_ISSET(tty.fd, &sdsetwr))
       {
-        tcflush(tty.fd, TCIOFLUSH);
-        rc = conn_write(tty.fd, tty.txbuf + tty.ptrbuf,
-                        tty.txlen - tty.ptrbuf, 1);
-        if (rc <= 0)
-        { /* error - make attempt to reinitialize serial port */
+	tcflush(tty.fd, TCIOFLUSH);
+	rc = conn_write(tty.fd, tty.txbuf + tty.ptrbuf,
+			tty.txlen - tty.ptrbuf, 1);
+	if (rc <= 0)
+	{ /* error - make attempt to reinitialize serial port */
 #ifdef LOG
-          logw(0, "tty: error in write() (%s)", strerror(errno));
+	  logw(0, "tty: error in write() (%s)", strerror(errno));
 #endif
-          tty_reinit();
-        }
+	  tty_reinit();
+	}
 #ifdef DEBUG
-        logw(7, "tty: written %d bytes", rc);
+	logw(7, "tty: written %d bytes", rc);
 #endif
-        tty.ptrbuf += rc;
-        if (tty.ptrbuf == tty.txlen)
-        { /* request transmitting completed, switch to TTY_RESP */
+	tty.ptrbuf += rc;
+	if (tty.ptrbuf == tty.txlen)
+	{ /* request transmitting completed, switch to TTY_RESP */
 #ifdef DEBUG
-          logw(7, "tty: request written (total %d bytes)", tty.txlen);
+	  logw(7, "tty: request written (total %d bytes)", tty.txlen);
 #endif
-          if (!tty.txbuf[0])
-          {
+	  if (!tty.txbuf[0])
+	  {
 #ifdef DEBUG
-            logw(5, "conn[%s]: broadcast request sent", curconn->remote_addr);
+	    logw(5, "conn[%s]: broadcast request sent", curconn->remote_addr);
 #endif
-            /* broadcast request sent, no reply expected from TTY*/
-            state_tty_set(&tty, TTY_PAUSE);
-            if (cfg.replyonbroadcast)
-            {
-                /* switch connection to response state, reply w actconn->buf */
-                state_conn_set(actconn, CONN_RESP);
-            }
-            else
-            {
-                /* Done, ready for next */
-                state_conn_set(actconn, CONN_HEADER);
-            }
+	    /* broadcast request sent, no reply expected from TTY*/
+	    state_tty_set(&tty, TTY_PAUSE);
+	    if (cfg.replyonbroadcast)
+	    {
+		/* switch connection to response state, reply w actconn->buf */
+		state_conn_set(actconn, CONN_RESP);
+	    }
+	    else
+	    {
+		/* Done, ready for next */
+		state_conn_set(actconn, CONN_HEADER);
+	    }
 
-          }
-          else
-          {
-            state_tty_set(&tty, TTY_RESP);
-            switch (tty.txbuf[1]) {
-              case 1:
-              case 2:
-                tty.rxlen = 5 + (tty.txbuf[4] * 256 + tty.txbuf[5] + 7)/8;
-                break;
-              case 3:
-              case 4:
-                tty.rxlen = 5 + tty.txbuf[5] * 2;
-                break;
-              case 7:
-                tty.rxlen = 5;
-                break;
-              case 11:
-              case 15:
-              case 16:
-                tty.rxlen = 8;
-                break;
-              default:
-                tty.rxlen = tty.txlen;
-                break;
-            }
-            if (tty.rxlen > TTY_BUFSIZE)
-              tty.rxlen = TTY_BUFSIZE;
-            tty.timer += DV(tty.rxlen, tty.bpc, tty.speed);
+	  }
+	  else
+	  {
+	    state_tty_set(&tty, TTY_RESP);
+	    switch (tty.txbuf[1]) {
+	      case 1:
+	      case 2:
+		tty.rxlen = 5 + (tty.txbuf[4] * 256 + tty.txbuf[5] + 7)/8;
+		break;
+	      case 3:
+	      case 4:
+		tty.rxlen = 5 + tty.txbuf[5] * 2;
+		break;
+	      case 7:
+		tty.rxlen = 5;
+		break;
+	      case 11:
+	      case 15:
+	      case 16:
+		tty.rxlen = 8;
+		break;
+	      default:
+		tty.rxlen = tty.txlen;
+		break;
+	    }
+	    if (tty.rxlen > TTY_BUFSIZE)
+	      tty.rxlen = TTY_BUFSIZE;
+	    tty.timer += DV(tty.rxlen, tty.bpc, tty.speed);
 #ifdef DEBUG
-            logw(5, "tty: estimated %d bytes, waiting %lu usec", tty.rxlen, tty.timer);
+	    logw(5, "tty: estimated %d bytes, waiting %lu usec", tty.rxlen, tty.timer);
 #endif
-          }
-        }
+	  }
+	}
       }
 
     if (FD_ISSET(tty.fd, &sdsetrd))
     {
       if (tty.state == TTY_RESP)
       {
-        if (tty.rxlen - tty.ptrbuf + tty.rxoffset <= 0) {
-          tcflush(tty.fd, TCIFLUSH);
-          state_tty_set(&tty, TTY_PAUSE);
-          continue;
-        }
-        rc = conn_read(tty.fd, tty.rxbuf + tty.ptrbuf,
-                       tty.rxlen - tty.ptrbuf + tty.rxoffset);
-        if (rc == RC_EAGAIN)
-        { /* some tty devices seem to be set as ready to be read by select()
-             while no data is available (see #78) */
+	if (tty.rxlen - tty.ptrbuf + tty.rxoffset <= 0) {
+	  tcflush(tty.fd, TCIFLUSH);
+	  state_tty_set(&tty, TTY_PAUSE);
+	  continue;
+	}
+	rc = conn_read(tty.fd, tty.rxbuf + tty.ptrbuf,
+		       tty.rxlen - tty.ptrbuf + tty.rxoffset);
+	if (rc == RC_EAGAIN)
+	{ /* some tty devices seem to be set as ready to be read by select()
+	     while no data is available (see #78) */
 #ifdef LOG
-          logw(5, "tty: read(): no data available");
+	  logw(5, "tty: read(): no data available");
 #endif
-        }
-        else if (rc <= 0)
-        { /* error - make attempt to reinitialize serial port */
+	}
+	else if (rc <= 0)
+	{ /* error - make attempt to reinitialize serial port */
 #ifdef LOG
-          logw(0, "tty: error in read() (%s)", rc ? strerror(errno) : "port closed");
+	  logw(0, "tty: error in read() (%s)", rc ? strerror(errno) : "port closed");
 #endif
-          tty_reinit();
-        }
-        else
-        {
+	  tty_reinit();
+	}
+	else
+	{
 #ifdef DEBUG
-          logw(7, "tty: read %d bytes", rc);
+	  logw(7, "tty: read %d bytes", rc);
 #endif
-          if (tty.ptrbuf - tty.rxoffset < 3 && tty.ptrbuf - tty.rxoffset + rc >= 3) {
-            /* we received more than 3 bytes from header - address, request id and bytes count */
-            if (!tty.rxoffset) {
-              /* offset is unknown */
-              unsigned char i;
-              for (i = 0; i < tty.ptrbuf - tty.rxoffset + rc - 1; i++) {
-                if (tty.rxbuf[i] == tty.txbuf[0] && tty.rxbuf[i+1] == tty.txbuf[1]) {
+	  if (tty.ptrbuf - tty.rxoffset < 3 && tty.ptrbuf - tty.rxoffset + rc >= 3) {
+	    /* we received more than 3 bytes from header - address, request id and bytes count */
+	    if (!tty.rxoffset) {
+	      /* offset is unknown */
+	      unsigned char i;
+	      for (i = 0; i < tty.ptrbuf - tty.rxoffset + rc - 1; i++) {
+		if (tty.rxbuf[i] == tty.txbuf[0] && tty.rxbuf[i+1] == tty.txbuf[1]) {
 #ifdef DEBUG
-                  logw(5, "tty: rx offset is %d", i);
+		  logw(5, "tty: rx offset is %d", i);
 #endif
-                  tty.rxoffset = i;
-                  break;
-                }
-              }
-              switch (tty.txbuf[1]) {
-                case 1:
-                case 2:
-                case 3:
-                case 4:
-                  i = 5 + tty.rxbuf[tty.rxoffset + 2];
-                  break;
-                default:
-                  i = tty.rxlen;
-                  break;
-              }
-              if (i + tty.rxoffset > TTY_BUFSIZE)
-                i = TTY_BUFSIZE - tty.rxoffset;
-              if (i != tty.rxlen) {
+		  tty.rxoffset = i;
+		  break;
+		}
+	      }
+	      switch (tty.txbuf[1]) {
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+		  i = 5 + tty.rxbuf[tty.rxoffset + 2];
+		  break;
+		default:
+		  i = tty.rxlen;
+		  break;
+	      }
+	      if (i + tty.rxoffset > TTY_BUFSIZE)
+		i = TTY_BUFSIZE - tty.rxoffset;
+	      if (i != tty.rxlen) {
 #ifdef DEBUG
-                logw(5, "tty: rx len changed from %d to %d", tty.rxlen, i);
+		logw(5, "tty: rx len changed from %d to %d", tty.rxlen, i);
 #endif
-                tty.rxlen = i;
-              }
-            }
-          }
-          tty.ptrbuf += rc;
-          logw(5, "tty: read %d bytes of %d, offset %d", tty.ptrbuf, tty.rxlen + tty.rxoffset, tty.rxoffset);
-          if (tty.ptrbuf == tty.rxlen + tty.rxoffset)
-            state_tty_set(&tty, TTY_PROC);
-        }
+		tty.rxlen = i;
+	      }
+	    }
+	  }
+	  tty.ptrbuf += rc;
+	  logw(5, "tty: read %d bytes of %d, offset %d", tty.ptrbuf, tty.rxlen + tty.rxoffset, tty.rxoffset);
+	  if (tty.ptrbuf == tty.rxlen + tty.rxoffset)
+	    state_tty_set(&tty, TTY_PROC);
+	}
       }
       else if (tty.state != TTY_PROC)
       { /* drop unexpected tty data */
-        rc = conn_read(tty.fd, tty.rxbuf, BUFSIZE);
-        if (rc == RC_EAGAIN)
-        { /* some tty devices seem to be set as ready to be read by select()
-             while no data is available (see #78) */
+	rc = conn_read(tty.fd, tty.rxbuf, BUFSIZE);
+	if (rc == RC_EAGAIN)
+	{ /* some tty devices seem to be set as ready to be read by select()
+	     while no data is available (see #78) */
 #ifdef LOG
-          logw(5, "tty: read(): no data available");
+	  logw(5, "tty: read(): no data available");
 #endif
-        }
-        else if (rc <= 0)
-        { /* error - make attempt to reinitialize serial port */
+	}
+	else if (rc <= 0)
+	{ /* error - make attempt to reinitialize serial port */
 #ifdef LOG
-          logw(0, "tty: error in read() (%s)", rc ? strerror(errno) : "port closed");
+	  logw(0, "tty: error in read() (%s)", rc ? strerror(errno) : "port closed");
 #endif
-          tty_reinit();
-        }
+	  tty_reinit();
+	}
 #ifdef DEBUG
-        else {
-          logw(7, "tty: dropped %d bytes", rc);
-        }
+	else {
+	  logw(7, "tty: dropped %d bytes", rc);
+	}
 #endif
       }
     }
@@ -712,58 +694,58 @@ conn_loop(void)
       logw(5, "tty: response read (total %d bytes, offset %d bytes)", tty.ptrbuf, tty.rxoffset);
 #endif
       /* Check if there is enough data for an error response
-          and if the error flag is set in the function code */
+	  and if the error flag is set in the function code */
       if ((tty.ptrbuf >= MB_ERR_LEN) && (tty.rxbuf[tty.rxoffset+TTY_FCODE_IDX] & TTY_ERR_MASK))
       {
-        /* This is an error response, set the length to
-             5 (1 + 1 + 1 + 2) = Slave Address + Function Code + Error Code + CRC */
-        tty.ptrbuf = MB_ERR_LEN;
+	/* This is an error response, set the length to
+	     5 (1 + 1 + 1 + 2) = Slave Address + Function Code + Error Code + CRC */
+	tty.ptrbuf = MB_ERR_LEN;
       }
       if (tty.ptrbuf >= MB_MIN_LEN &&
-         modbus_crc_correct(tty.rxbuf + tty.rxoffset, tty.ptrbuf - tty.rxoffset))
+	 modbus_crc_correct(tty.rxbuf + tty.rxoffset, tty.ptrbuf - tty.rxoffset))
       { /* received response is correct, make OpenMODBUS response */
 #ifdef DEBUG
-        logw(5, "tty: response is correct");
-        // Optionally print the correct packet data
-        t[0] = '\0';
-        for (i = 0; i < tty.ptrbuf; i++) {
-          sprintf(v, "[%2.2x]", tty.rxbuf[i]);
-          strncat(t, v, 1024-strlen(t));
-        }
-        logw(9, "tty: response: %s", t);
+	logw(5, "tty: response is correct");
+	// Optionally print the correct packet data
+	t[0] = '\0';
+	for (i = 0; i < tty.ptrbuf; i++) {
+	  sprintf(v, "[%2.2x]", tty.rxbuf[i]);
+	  strncat(t, v, 1024-strlen(t));
+	}
+	logw(9, "tty: response: %s", t);
 #endif
-        (void)memcpy((void *)(actconn->buf + HDRSIZE),
-                     (void *)(tty.rxbuf + tty.rxoffset), tty.ptrbuf - CRCSIZE - tty.rxoffset);
-        WORD_WR_BE(actconn->buf + MB_LENGTH_H, tty.ptrbuf - CRCSIZE - tty.rxoffset);
-        /* switch connection to response state */
-        state_conn_set(actconn, CONN_RESP);
-        /* make inter-request pause */
-        state_tty_set(&tty, TTY_PAUSE);
+	(void)memcpy((void *)(actconn->buf + HDRSIZE),
+		     (void *)(tty.rxbuf + tty.rxoffset), tty.ptrbuf - CRCSIZE - tty.rxoffset);
+	WORD_WR_BE(actconn->buf + MB_LENGTH_H, tty.ptrbuf - CRCSIZE - tty.rxoffset);
+	/* switch connection to response state */
+	state_conn_set(actconn, CONN_RESP);
+	/* make inter-request pause */
+	state_tty_set(&tty, TTY_PAUSE);
       } else {
-        /* received response is incomplete or CRC failed */
+	/* received response is incomplete or CRC failed */
 #ifdef DEBUG
-        t[0] = '\0';
-        for (i = 0; i < tty.ptrbuf; i++) {
-          sprintf(v, "[%2.2x]", tty.rxbuf[i]);
-          strncat(t, v, 1024-strlen(t));
-        }
-        logw(5, "tty: response is incorrect: %s", t);
+	t[0] = '\0';
+	for (i = 0; i < tty.ptrbuf; i++) {
+	  sprintf(v, "[%2.2x]", tty.rxbuf[i]);
+	  strncat(t, v, 1024-strlen(t));
+	}
+	logw(5, "tty: response is incorrect: %s", t);
 #endif
-        if (!tty.trynum) {
-          logw(3, "tty: response is incorrect (%d of %d bytes, offset %d), return error", tty.ptrbuf,
-            tty.rxoffset + tty.rxlen, tty.rxoffset);
-          modbus_ex_write(actconn->buf, MB_EX_CRC);
-          /* switch connection to response state */
-          state_conn_set(actconn, CONN_RESP);
-          /* make inter-request pause */
-          state_tty_set(&tty, TTY_PAUSE);
-        } else { /* retry request */
+	if (!tty.trynum) {
+	  logw(3, "tty: response is incorrect (%d of %d bytes, offset %d), return error", tty.ptrbuf,
+	    tty.rxoffset + tty.rxlen, tty.rxoffset);
+	  modbus_ex_write(actconn->buf, MB_EX_CRC);
+	  /* switch connection to response state */
+	  state_conn_set(actconn, CONN_RESP);
+	  /* make inter-request pause */
+	  state_tty_set(&tty, TTY_PAUSE);
+	} else { /* retry request */
 #ifdef DEBUG
-          logw(5, "tty: attempt to retry request (%u of %u)",
-                 cfg.maxtry - tty.trynum + 1, cfg.maxtry);
+	  logw(5, "tty: attempt to retry request (%u of %u)",
+		 cfg.maxtry - tty.trynum + 1, cfg.maxtry);
 #endif
-          state_tty_set(&tty, TTY_RQST);
-        }
+	  state_tty_set(&tty, TTY_RQST);
+	}
       }
     }
 
@@ -777,122 +759,122 @@ conn_loop(void)
     {
       switch (curconn->state)
       {
-        case CONN_HEADER:
-        case CONN_RQST_FUNC:
-        case CONN_RQST_NVAL:
-        case CONN_RQST_TAIL:
-          if (FD_ISSET(curconn->sd, &sdsetrd))
-          {
-            rc = conn_read(curconn->sd,
-                           curconn->buf + curconn->ctr,
-                           curconn->read_len - curconn->ctr);
-            if (rc <= 0)
-            { /* error - drop this connection and go to next queue element */
-              curconn = conn_close(curconn);
-              break;
-            }
-            curconn->ctr += rc;
-            if (curconn->state == CONN_HEADER)
-              if (curconn->ctr >= MB_UNIT_ID)
-              { /* header received completely */
-                if (modbus_check_header(curconn->buf) != RC_OK)
-                { /* header is damaged, drop connection */
-                  curconn = conn_close(curconn);
-                  break;
-                }
-                state_conn_set(curconn, CONN_RQST_FUNC);
-              }
-            if (curconn->state == CONN_RQST_FUNC)
-              if (curconn->ctr >= MB_DATA)
-              {
-                /* check request function code */
-                unsigned char fc = MB_FRAME(curconn->buf, MB_FCODE);
+	case CONN_HEADER:
+	case CONN_RQST_FUNC:
+	case CONN_RQST_NVAL:
+	case CONN_RQST_TAIL:
+	  if (FD_ISSET(curconn->sd, &sdsetrd))
+	  {
+	    rc = conn_read(curconn->sd,
+			   curconn->buf + curconn->ctr,
+			   curconn->read_len - curconn->ctr);
+	    if (rc <= 0)
+	    { /* error - drop this connection and go to next queue element */
+	      curconn = conn_close(curconn);
+	      break;
+	    }
+	    curconn->ctr += rc;
+	    if (curconn->state == CONN_HEADER)
+	      if (curconn->ctr >= MB_UNIT_ID)
+	      { /* header received completely */
+		if (modbus_check_header(curconn->buf) != RC_OK)
+		{ /* header is damaged, drop connection */
+		  curconn = conn_close(curconn);
+		  break;
+		}
+		state_conn_set(curconn, CONN_RQST_FUNC);
+	      }
+	    if (curconn->state == CONN_RQST_FUNC)
+	      if (curconn->ctr >= MB_DATA)
+	      {
+		/* check request function code */
+		unsigned char fc = MB_FRAME(curconn->buf, MB_FCODE);
 #ifdef DEBUG
-                logw(7, "conn[%s]: read request fc %d", curconn->remote_addr, fc);
+		logw(7, "conn[%s]: read request fc %d", curconn->remote_addr, fc);
 #endif
-                switch (fc)
-                {
-                  case 1: /* Read Coil Status */
-                  case 2: /* Read Input Status */
-                  case 3: /* Read Holding Registers */
-                  case 4: /* Read Input Registers */
-                  case 5: /* Force Single Coil */
-                  case 6: /* Preset Single Register */
-                  {
-                    /* set data length for requests with fixed length */
-                    conn_fix_request_header_len(curconn, 6);
-                    state_conn_set(curconn, CONN_RQST_TAIL);
-                  }
-                    break;
-                  case 15: /* Force Multiple Coils */
-                  case 16: /* Preset Multiple Registers */
-                    /* will read number of registers/coils to compute request data length */
-                    state_conn_set(curconn, CONN_RQST_NVAL);
-                    break;
-                  default:
-                    /* unknown function code, will rely on data length from header */
-                    state_conn_set(curconn, CONN_RQST_TAIL);
-                    break;
-                }
-              }
-            if (curconn->state == CONN_RQST_NVAL)
-              if (curconn->ctr >= MB_DATA_NBYTES)
-              {
-                /* compute request data length for fc 15/16 */
-                unsigned int len;
-                switch (MB_FRAME(curconn->buf, MB_FCODE))
-                {
-                  case 15: /* Force Multiple Coils */
-                    len = 7 + (MB_FRAME(curconn->buf, MB_DATA_NVAL_H) * 256 +
-                        MB_FRAME(curconn->buf, MB_DATA_NVAL_L) + 7) / 8;
-                    break;
-                  case 16: /* Preset Multiple Registers */
-                    len = 7 + MB_FRAME(curconn->buf, MB_DATA_NVAL_L) * 2;
-                    break;
-                }
-                if (len == 0 || len > BUFSIZE - 2)
-                { /* invalid request data length, drop connection */
-                  curconn = conn_close(curconn);
-                  break;
-                }
-                conn_fix_request_header_len(curconn, len);
-                state_conn_set(curconn, CONN_RQST_TAIL);
-              }
-            if (curconn->state == CONN_RQST_TAIL)
-              if (curconn->ctr >= HDRSIZE + MB_FRAME(curconn->buf, MB_LENGTH_L))
-              { /* ### frame received completely ### */
+		switch (fc)
+		{
+		  case 1: /* Read Coil Status */
+		  case 2: /* Read Input Status */
+		  case 3: /* Read Holding Registers */
+		  case 4: /* Read Input Registers */
+		  case 5: /* Force Single Coil */
+		  case 6: /* Preset Single Register */
+		  {
+		    /* set data length for requests with fixed length */
+		    conn_fix_request_header_len(curconn, 6);
+		    state_conn_set(curconn, CONN_RQST_TAIL);
+		  }
+		    break;
+		  case 15: /* Force Multiple Coils */
+		  case 16: /* Preset Multiple Registers */
+		    /* will read number of registers/coils to compute request data length */
+		    state_conn_set(curconn, CONN_RQST_NVAL);
+		    break;
+		  default:
+		    /* unknown function code, will rely on data length from header */
+		    state_conn_set(curconn, CONN_RQST_TAIL);
+		    break;
+		}
+	      }
+	    if (curconn->state == CONN_RQST_NVAL)
+	      if (curconn->ctr >= MB_DATA_NBYTES)
+	      {
+		/* compute request data length for fc 15/16 */
+		unsigned int len;
+		switch (MB_FRAME(curconn->buf, MB_FCODE))
+		{
+		  case 15: /* Force Multiple Coils */
+		    len = 7 + (MB_FRAME(curconn->buf, MB_DATA_NVAL_H) * 256 +
+			MB_FRAME(curconn->buf, MB_DATA_NVAL_L) + 7) / 8;
+		    break;
+		  case 16: /* Preset Multiple Registers */
+		    len = 7 + MB_FRAME(curconn->buf, MB_DATA_NVAL_L) * 2;
+		    break;
+		}
+		if (len == 0 || len > BUFSIZE - 2)
+		{ /* invalid request data length, drop connection */
+		  curconn = conn_close(curconn);
+		  break;
+		}
+		conn_fix_request_header_len(curconn, len);
+		state_conn_set(curconn, CONN_RQST_TAIL);
+	      }
+	    if (curconn->state == CONN_RQST_TAIL)
+	      if (curconn->ctr >= HDRSIZE + MB_FRAME(curconn->buf, MB_LENGTH_L))
+	      { /* ### frame received completely ### */
 #ifdef DEBUG
-                t[0] = '\0';
-                int i;
-                for (i = MB_UNIT_ID; i < curconn->ctr; i++) {
-                  sprintf(v, "[%2.2x]", curconn->buf[i]);
-                  strncat(t, v, 1024-strlen(t));
-                }
-                logw(5, "conn[%s]: request: %s", curconn->remote_addr, t);
+		t[0] = '\0';
+		int i;
+		for (i = MB_UNIT_ID; i < curconn->ctr; i++) {
+		  sprintf(v, "[%2.2x]", curconn->buf[i]);
+		  strncat(t, v, 1024-strlen(t));
+		}
+		logw(5, "conn[%s]: request: %s", curconn->remote_addr, t);
 #endif
-                state_conn_set(curconn, CONN_TTY);
-                if (tty.state == TTY_READY)
-                  conn_tty_start(&tty, curconn);
-              }
-          }
-          break;
-        case CONN_RESP:
-          if (FD_ISSET(curconn->sd, &sdsetwr))
-          {
-            rc = conn_write(curconn->sd,
-                            curconn->buf + curconn->ctr,
-                            MB_FRAME(curconn->buf, MB_LENGTH_L) +
-                            HDRSIZE - curconn->ctr, 0);
-            if (rc <= 0)
-            { /* error - drop this connection and go to next queue element */
-              curconn = conn_close(curconn);
-              break;
-            }
-            curconn->ctr += rc;
-            if (curconn->ctr == (MB_FRAME(curconn->buf, MB_LENGTH_L) + HDRSIZE))
-              state_conn_set(curconn, CONN_HEADER);
-          }
-          break;
+		state_conn_set(curconn, CONN_TTY);
+		if (tty.state == TTY_READY)
+		  conn_tty_start(&tty, curconn);
+	      }
+	  }
+	  break;
+	case CONN_RESP:
+	  if (FD_ISSET(curconn->sd, &sdsetwr))
+	  {
+	    rc = conn_write(curconn->sd,
+			    curconn->buf + curconn->ctr,
+			    MB_FRAME(curconn->buf, MB_LENGTH_L) +
+			    HDRSIZE - curconn->ctr, 0);
+	    if (rc <= 0)
+	    { /* error - drop this connection and go to next queue element */
+	      curconn = conn_close(curconn);
+	      break;
+	    }
+	    curconn->ctr += rc;
+	    if (curconn->ctr == (MB_FRAME(curconn->buf, MB_LENGTH_L) + HDRSIZE))
+	      state_conn_set(curconn, CONN_HEADER);
+	  }
+	  break;
       } /* switch (curconn->state) */
       curconn = queue_next_elem(&queue, curconn);
     } /* while (len--) */
@@ -907,16 +889,14 @@ conn_loop(void)
  *             LEN - expected request data length
  * Return: none
  */
-void
-conn_fix_request_header_len(conn_t *conn, unsigned char len)
+void conn_fix_request_header_len(conn_t *conn, unsigned char len)
 {
-  if (MB_FRAME(conn->buf, MB_LENGTH_L) != len)
-  {
-#ifdef DEBUG
-    logw(5, "conn[%s]: request data len changed from %d to %d",
-         conn->remote_addr, MB_FRAME(conn->buf, MB_LENGTH_L), len);
-#endif
-    MB_FRAME(conn->buf, MB_LENGTH_L) = len;
-  }
+	if (MB_FRAME(conn->buf, MB_LENGTH_L) != len)
+		{
+	#ifdef DEBUG
+		logw(5, "conn[%s]: request data len changed from %d to %d", conn->remote_addr, MB_FRAME(conn->buf, MB_LENGTH_L), len);
+	#endif
+		MB_FRAME(conn->buf, MB_LENGTH_L) = len;
+		}
 }
 

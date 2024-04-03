@@ -12,7 +12,7 @@ include(FindSystemd)
 
 #TODO  ISC_Posix,  prog_libtool
 # single-configuration generator setup
-SET(BASIC_C_FLAGS "-W -pedantic -fno-builtin-log -Wall")
+#SET(BASIC_C_FLAGS "-W -pedantic -fno-builtin-log -Wall")
 SET(CMAKE_C_FLAGS_RELEASE   "${BASIC_C_FLAGS} -O2")
 SET(CMAKE_C_FLAGS_DEBUG     "${BASIC_C_FLAGS} -g")
 
@@ -61,21 +61,41 @@ if(LIB_UTIL AND HAVE_TTY_GET_NAME AND HAVE_UU_LOCK)
     add_definitions(-DHAVE_LIBUTIL)
 endif()
 
+
+
+
+set (3RDPARTY_ROOT	3rdparty/ )
+set (STARLET_ROOT       ${3RDPARTY_ROOT}/utility_routines/ )
+
+include_directories (
+	${STARLET_ROOT}
+)
+
+add_subdirectory(3rdparty/utility_routines)						# Set of utility routines for general purpose
+
+
 # add the main application
 set(mbusd_SOURCES
-        src/main.c
-        src/tty.c
-        src/log.c
-        src/cfg.c
-        src/conn.c
-        src/queue.c
-        src/modbus.c
-        src/state.c
-        src/sig.c
-        src/sock.c
-        src/util.c
-        )
+	src/main.c
+	src/tty.c
+	src/log.c
+	src/cfg.c
+	src/conn.c
+	src/queue.c
+	src/modbus.c
+	src/state.c
+	src/sig.c
+	src/sock.c
+	src/util.c
+	)
 add_executable(mbusd ${mbusd_SOURCES})
+add_dependencies(mbusd starlet)
+target_link_libraries(mbusd starlet)
+
+
+
+
+
 install(TARGETS mbusd DESTINATION bin)
 
 # aggregate the man page template
@@ -84,8 +104,8 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mbusd.8 DESTINATION ${CMAKE_INSTALL_FU
 
 # install example configuration file
 install(
-        FILES ${CMAKE_CURRENT_SOURCE_DIR}/conf/mbusd.conf.example
-        DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/${CMAKE_PROJECT_NAME}
+	FILES ${CMAKE_CURRENT_SOURCE_DIR}/conf/mbusd.conf.example
+	DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/${CMAKE_PROJECT_NAME}
 )
 
 if(SYSTEMD_SERVICES_INSTALL_DIR)
@@ -115,17 +135,17 @@ add_test(
 #@source http://xit0.org/2013/04/cmake-use-git-branch-and-commit-details-in-project/
 # Get the current working branch
 execute_process(
-        COMMAND git rev-parse --abbrev-ref HEAD
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_BRANCH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
+	COMMAND git rev-parse --abbrev-ref HEAD
+	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+	OUTPUT_VARIABLE GIT_BRANCH
+	OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 # Get the latest abbreviated commit hash of the working branch
 execute_process(
-        COMMAND git log -1 --format=%h
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_COMMIT_HASH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
+	COMMAND git log -1 --format=%h
+	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+	OUTPUT_VARIABLE GIT_COMMIT_HASH
+	OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
 ## issue the package creation with $make package

@@ -45,7 +45,11 @@ extern int isdaemon;
 #ifdef LOG
 int log_init(char *logname);
 int log_app(char *logname, char *string);
-void logw(int level, char *fmt, ...);
+
+
+void	__logw (const char *a_func, int a_line, int level, const char *a_fmt,...);
+#define logw(level, fmt, ...)	__logw(__FUNCTION__ , __LINE__ , level, fmt, ## __VA_ARGS__)
+
 #else
     #define logw(fmt, ...) {}
 #endif

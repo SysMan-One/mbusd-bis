@@ -31,7 +31,9 @@
  * $Id: log.c,v 1.6 2015/02/25 10:33:57 kapyar Exp $
  */
 
-#include "log.h"
+#include	"utility_routines.h"
+#include	"log.h"
+
 
 #ifdef LOG
 #include "cfg.h"
@@ -39,83 +41,54 @@
 /* log file full name */
 char logfullname[INTBUFSIZE + 1];
 
-int
-log_init(char *logname)
+int log_init(char *logname)
 {
-  FILE *logfile;
-  int maxlen = INTBUFSIZE;
 
-  /* checking log file name */
-  if (*logname == '/')
-    strncpy(logfullname, logname, maxlen);
-  else
-  {
-    if (!*logname)
-    {
-      /* logfile isn't needed */
-      *logfullname = '\0';
-      return RC_OK;
-    }
-    /* append default log path */
-    strncpy(logfullname, LOGPATH, maxlen);
-    maxlen -= strlen(logfullname);
-    strncat(logfullname, logname, maxlen);
-  }
+	if ( 1 & __util$deflog (logname, NULL) )
+		return	RC_OK;
 
-  logfile = fopen(logfullname, "at");
-  if (logfile)
-  {
-    fclose(logfile);
-    return RC_OK;
-  }
-  return RC_ERR;
+	return RC_ERR;
 }
 
-/* Append message STRING to log file LOGNAME */
-int
-log_app(char *logname, char *string)
-{
-  FILE *logfile;
-  logfile = fopen(logname, "at");
-  if (logfile)
-  {
-    fputs(string, logfile);
-    fclose(logfile);
-    return RC_OK;
-  }
-  return RC_ERR;
-}
+
 
 /* Put message with format FMT with errorlevel LEVEL to log file */
-void
-logw(int level, char *fmt, ...)
+void __logw (
+	const char	*a_func,
+		int	a_line,
+		int	level,
+	const char	*a_fmt,
+		...
+		)
 {
-#ifdef HRDATE
-  time_t tt;
-  struct tm *t;
-#else
-  struct timeval tv;
-#endif
-  va_list args;
-  int strsize = 0;
-  static char str[INTBUFSIZE + 1] = {0}, *p;
+char	l_msg[8192], *l_cp;
+int	l_len;
+va_list a_args;
 
-  if (level > cfg.dbglvl) return;
-#ifdef HRDATE
-  tt = time(NULL);
-  t = localtime(&tt);
-  strsize += strftime(str, 32, "%d %b %Y %H:%M:%S ", t);
-#else
-  (void)gettimeofday(&tv, NULL);
-  strsize += snprintf(str, 32, "%06lu:%06lu ", tv.tv_sec, tv.tv_usec);
-#endif
-  va_start(args, fmt);
-  p = str + strsize;
-  strsize += vsnprintf(p, INTBUFSIZE - strsize, fmt, args);
-  va_end(args);
-  strcpy(str + strsize++, "\n");
-  if (!isdaemon) fprintf(stderr, "%s", str);
-  if (*logfullname == '\0') return;
-  log_app(logfullname, str);
+	switch (level)									/* Translate SPDK's log levels to the severity status */
+		{
+		case	0:	return;
+		case	1:		level = STS$K_ERROR;	break;
+		case	2:		level = STS$K_WARN;	break;
+		case	3:		level = STS$K_SUCCESS;	break;
+		case	4:		level = STS$K_INFO;	break;
+		case	5:		level = STS$K_INFO;	break;
+		default:		level = STS$K_INFO;	break;
+		}
+
+	va_start (a_args, a_fmt);
+	l_len = vsnprintf(l_msg, sizeof(l_msg), a_fmt, a_args);				/* Format SPDK's message into the buffer */
+	va_end (a_args);
+
+	for (l_cp = ((l_msg + l_len) - 1); l_len; l_len--, l_cp--)			/* Remove extra CR, LF */
+		{
+		if ( !((*l_cp == '\r') || (*l_cp == '\n')) )
+			break;
+		}
+
+	l_msg[l_len] = '\0';								/* Make ASCIZ */
+
+
+	__util$logd( "MBUSD", level, l_msg, "MBUSD", a_func, a_line);
 }
 #endif

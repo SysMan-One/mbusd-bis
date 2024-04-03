@@ -76,8 +76,7 @@ modbus_crc16_table[] = {
  *             LEN   - frame length;
  * Return: calculated CRC value
  */
-static unsigned short
-modbus_crc_calculate(unsigned char *frame, unsigned int len)
+static unsigned short modbus_crc_calculate(unsigned char *frame, unsigned int len)
 {
   unsigned short crc = 0xffff;
   while (len--)
@@ -92,8 +91,7 @@ modbus_crc_calculate(unsigned char *frame, unsigned int len)
  * Return: 0 if CRC failed,
  *         non-zero otherwise
  */
-int
-modbus_crc_correct(unsigned char *frame, unsigned int len)
+int modbus_crc_correct(unsigned char *frame, unsigned int len)
 {
   return (!modbus_crc_calculate(frame, len));
 }
@@ -104,8 +102,7 @@ modbus_crc_correct(unsigned char *frame, unsigned int len)
  *             LEN   - frame length;
  * Return: none
  */
-void
-modbus_crc_write(unsigned char *frame, unsigned int len)
+void modbus_crc_write(unsigned char *frame, unsigned int len)
 {
   WORD_WR_LE(frame + len, modbus_crc_calculate(frame, len));
 }
@@ -116,8 +113,7 @@ modbus_crc_write(unsigned char *frame, unsigned int len)
  *             CODE - exception code;
  * Return: none
  */
-void
-modbus_ex_write(unsigned char *packet, unsigned char code)
+void modbus_ex_write(unsigned char *packet, unsigned char code)
 {
   MB_FRAME(packet, MB_FCODE) |= 0x80;
   MB_FRAME(packet, MB_DATA) = code;
@@ -129,12 +125,11 @@ modbus_ex_write(unsigned char *packet, unsigned char code)
  * Parameters: PACKET - address of the request packet,
  * Return: RC_OK if (mostly) all is right, RC_ERR otherwise
  */
-int
-modbus_check_header(unsigned char *packet)
+int modbus_check_header(unsigned char *packet)
 {
   return (MB_FRAME(packet, MB_PROTO_ID_H) == 0 &&
-          MB_FRAME(packet, MB_PROTO_ID_L) == 0 &&
-          MB_FRAME(packet, MB_LENGTH_H) == 0   &&
-          MB_FRAME(packet, MB_LENGTH_L) > 0    &&
-          MB_FRAME(packet, MB_LENGTH_L) < BUFSIZE - CRCSIZE) ? RC_OK : RC_ERR;
+	  MB_FRAME(packet, MB_PROTO_ID_L) == 0 &&
+	  MB_FRAME(packet, MB_LENGTH_H) == 0   &&
+	  MB_FRAME(packet, MB_LENGTH_L) > 0    &&
+	  MB_FRAME(packet, MB_LENGTH_L) < BUFSIZE - CRCSIZE) ? RC_OK : RC_ERR;
 }

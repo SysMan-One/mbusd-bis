@@ -4,18 +4,18 @@
  * queue.c - connections queue management procedures
  *
  * Copyright (c) 2002-2003, 2013, Victor Antonovich (v.antonovich@gmail.com)
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * - Redistributions of source code must retain the above copyright
  * notice, this list of conditions and the following disclaimer.
- * 
+ *
  * - Redistributions in binary form must reproduce the above copyright
  * notice, this list of conditions and the following disclaimer in the
  * documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -36,26 +36,24 @@
 /*
  * Queue structure initialization
  */
-void
-queue_init(queue_t *queue)
+void queue_init(queue_t *queue)
 {
-  queue->beg = NULL;
-  queue->end = NULL;
-  queue->len = 0;
+	queue->beg = NULL;
+	queue->end = NULL;
+	queue->len = 0;
 }
 
 /*
  * Add new element to queue
  */
-conn_t *
-queue_new_elem(queue_t *queue)
+conn_t *queue_new_elem(queue_t *queue)
 {
   conn_t *newconn = (conn_t *)malloc(sizeof(conn_t));
   if (!newconn)
   { /* Aborting program execution */
 #ifdef LOG
     logw(0, "queue_new_elem(): out of memory for new element (%s)",
-           strerror(errno));
+	   strerror(errno));
 #endif
     exit(errno);
   }
@@ -75,8 +73,7 @@ queue_new_elem(queue_t *queue)
 /*
  * Remove element from queue
  */
-void
-queue_delete_elem(queue_t *queue, conn_t *conn)
+void queue_delete_elem(queue_t *queue, conn_t *conn)
 {
   if (queue->len <= 0)
   { /* queue is empty */
@@ -90,7 +87,7 @@ queue_delete_elem(queue_t *queue, conn_t *conn)
     if ((queue->beg = queue->beg->next) != NULL)
       queue->beg->prev = NULL;
   }
-  else 
+  else
     conn->prev->next = conn->next;
   if (conn->next == NULL)
   { /* deleting last element */
@@ -101,7 +98,7 @@ queue_delete_elem(queue_t *queue, conn_t *conn)
     conn->next->prev = conn->prev;
   queue->len--;
   free((void *)conn);
-#ifdef DEBUG  
+#ifdef DEBUG
   logw(5, "queue_delete_elem(): length now is %d", queue->len);
 #endif
   return;
@@ -112,8 +109,7 @@ queue_delete_elem(queue_t *queue, conn_t *conn)
  * Parameters: CONN - pointer to current queue element
  * Return: pointer to next queue element
  */
-conn_t *
-queue_next_elem(queue_t *queue, conn_t *conn)
+conn_t *queue_next_elem(queue_t *queue, conn_t *conn)
 {
-  return (conn == NULL || conn->next == NULL) ? queue->beg : conn->next;
+	return (conn == NULL || conn->next == NULL) ? queue->beg : conn->next;
 }

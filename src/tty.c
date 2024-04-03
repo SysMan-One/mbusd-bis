@@ -40,36 +40,35 @@ static int tty_break;
 /*
  * Flag signal SIG
  */
-void
-tty_sighup(void)
+void tty_sighup(void)
 {
-  tty_break = TRUE;
-  return;
+	tty_break = TRUE;
+	return;
 }
 
 /*
  * Init serial link parameters
  */
-void
-tty_init(ttydata_t *mod)
+void tty_init(ttydata_t *mod)
 {
-  mod->fd = -1;
-  mod->port = cfg.ttyport;
-  mod->speed = cfg.ttyspeed;
-  mod->bpc = DEFAULT_BITS_PER_CHAR;
-  if (toupper(cfg.ttymode[1]) != 'N')
-  {
-    mod->bpc++;
-  }
-  if (cfg.ttymode[2] == '2')
-  {
-    mod->bpc++;
-  }
+	mod->fd = -1;
+	mod->port = cfg.ttyport;
+	mod->speed = cfg.ttyspeed;
+	mod->bpc = DEFAULT_BITS_PER_CHAR;
+
+	if (toupper(cfg.ttymode[1]) != 'N')
+		mod->bpc++;
+
+
+	if (cfg.ttymode[2] == '2')
+		mod->bpc++;
+
+
 #ifdef HAVE_TIOCRS485
-  mod->rs485 = cfg.rs485;
+	mod->rs485 = cfg.rs485;
 #endif
 #ifdef TRXCTL
-  mod->trxcntl = cfg.trxcntl;
+	mod->trxcntl = cfg.trxcntl;
 #endif
 }
 
@@ -96,34 +95,35 @@ tty_get_name(char *ttyfullname)
 /*
  * Opening serial link whith parameters in MOD
  */
-int
-tty_open(ttydata_t *mod)
+int tty_open(ttydata_t *mod)
 {
 #ifdef HAVE_LIBUTIL
   int buferr, uuerr;
   char *ttyname = tty_get_name(mod->port);
 #endif
-  if (mod->fd > 0)
-    return RC_AOPEN;        /* if already open... */
-  tty_break = FALSE;
+	if (mod->fd > 0)
+		return RC_AOPEN;        /* if already open... */
+
+	tty_break = FALSE;
+
 #ifdef HAVE_LIBUTIL
   if ((uuerr = uu_lock(ttyname)) != UU_LOCK_OK)
   {
     buferr = errno;
 #ifdef LOG
     logw(0, "uu_lock(): can't lock tty device %s (%s)",
-        ttyname, uu_lockerr(uuerr));
+	ttyname, uu_lockerr(uuerr));
 #endif
     errno = buferr;
     return RC_ERR;
   }
 #endif
 #ifdef LOG
-  logw(2, "tty: trying to open %s (speed %d mode %s)", mod->port, mod->speed, cfg.ttymode);
+	logw(2, "tty: trying to open %s (speed %d mode %s)", mod->port, mod->speed, cfg.ttymode);
 #endif
-  mod->fd = open(mod->port, O_RDWR | O_NONBLOCK | O_NOCTTY);
-  if (mod->fd < 0)
-    return RC_ERR;          /* attempt failed */
+	if ( 0 > (mod->fd = open(mod->port, O_RDWR | O_NONBLOCK | O_NOCTTY)) )
+		return RC_ERR;          /* attempt failed */
+
   return tty_set_attr(mod);
 }
 
@@ -199,15 +199,15 @@ tty_set_attr(ttydata_t *mod)
     logw(2, "tty: trying to enable RS-485 support for %s", mod->port);
 #endif
     if (ioctl(mod->fd, TIOCGRS485, &rs485conf) < 0) {
-        return RC_ERR;
+	return RC_ERR;
     }
     rs485conf.flags |= SER_RS485_ENABLED;
     if (ioctl(mod->fd, TIOCSRS485, &rs485conf) < 0) {
-        return RC_ERR;
+	return RC_ERR;
     }
 #ifdef LOG
     logw(2, "tty: enabled RS-485 support for %s", mod->port);
-#endif    
+#endif
   }
 #endif
   flag = fcntl(mod->fd, F_GETFL, 0);
@@ -219,8 +219,7 @@ tty_set_attr(ttydata_t *mod)
 /*
  * Translate integer SPEED value to speed_t constant
  */
-speed_t
-tty_transpeed(int speed)
+speed_t tty_transpeed(int speed)
 {
   speed_t tspeed;
   switch (speed)
@@ -410,21 +409,21 @@ tty_transpeed(int speed)
 /*
  * Prepare tty device MOD to closing
  */
-int
-tty_cooked(ttydata_t *mod)
+int tty_cooked(ttydata_t *mod)
 {
-  if (!isatty(mod->fd))
-    return RC_ERR;
-  if (tcsetattr(mod->fd, TCSAFLUSH, &mod->savedtios))
-    return RC_ERR;
-  return RC_OK;
+	if (!isatty(mod->fd))
+		return RC_ERR;
+
+	if (tcsetattr(mod->fd, TCSAFLUSH, &mod->savedtios))
+		return RC_ERR;
+
+	return RC_OK;
 }
 
 /*
  * Closing tty device MOD
  */
-int
-tty_close(ttydata_t *mod)
+int tty_close(ttydata_t *mod)
 {
 #ifdef HAVE_LIBUTIL
   int buferr;
@@ -441,7 +440,7 @@ tty_close(ttydata_t *mod)
     buferr = errno;
 #ifdef LOG
     logw(0, "uu_lock(): can't unlock tty device %s",
-        ttyname);
+	ttyname);
 #endif
     errno = buferr;
     return RC_ERR;
@@ -466,53 +465,50 @@ void sysfs_gpio_set(char *filename, char *value) {
 }
 
 /* Set tty device into transmit mode */
-void
-tty_set_tx(int fd)
+void tty_set_tx(int fd)
 {
-	if ( TRX_RTS_1 == cfg.trxcntl ) {
-		int mstat = TIOCM_RTS;
-		ioctl(fd, TIOCMBIS, &mstat);
-	} else if ( TRX_RTS_0 == cfg.trxcntl ) {
-		int mstat = TIOCM_RTS;
-		ioctl(fd, TIOCMBIC, &mstat);
-  } else if ( TRX_SYSFS_1 == cfg.trxcntl) {
-		sysfs_gpio_set(cfg.trxcntl_file,"1");
-	} else if ( TRX_SYSFS_0 == cfg.trxcntl) {
-		sysfs_gpio_set(cfg.trxcntl_file,"0");
-	}
+int mstat = -1;
+
+	if ( TRX_RTS_1 == cfg.trxcntl )
+		ioctl(fd, TIOCMBIS, mstat = TIOCM_RTS, &mstat);
+	else if ( TRX_RTS_0 == cfg.trxcntl )
+		ioctl(fd, TIOCMBIC, mstat = TIOCM_RTS, &mstat);
+	else if ( TRX_SYSFS_1 == cfg.trxcntl)
+		sysfs_gpio_set(cfg.trxcntl_file, "1");
+	else if ( TRX_SYSFS_0 == cfg.trxcntl)
+		sysfs_gpio_set(cfg.trxcntl_file, "0");
+
 }
 
 /* Set tty device into receive mode */
-void
-tty_set_rx(int fd)
+void tty_set_rx(int fd)
 {
-	if ( TRX_RTS_1 == cfg.trxcntl ) {
-		int mstat = TIOCM_RTS;
-		ioctl(fd, TIOCMBIC, &mstat);
-	} else if ( TRX_RTS_0 == cfg.trxcntl ) {
-		int mstat = TIOCM_RTS;
-		ioctl(fd, TIOCMBIS, &mstat);
-	} else if ( TRX_SYSFS_1 == cfg.trxcntl) {
+int mstat = -1;
+
+	if ( TRX_RTS_1 == cfg.trxcntl )
+		ioctl(fd, TIOCMBIC, mstat = TIOCM_RTS, &mstat);
+	else if ( TRX_RTS_0 == cfg.trxcntl )
+		ioctl(fd, TIOCMBIS, mstat = TIOCM_RTS, &mstat);
+	else if ( TRX_SYSFS_1 == cfg.trxcntl)
 		sysfs_gpio_set(cfg.trxcntl_file,"0");
-	} else if ( TRX_SYSFS_0 == cfg.trxcntl) {
+	else if ( TRX_SYSFS_0 == cfg.trxcntl)
 		sysfs_gpio_set(cfg.trxcntl_file,"1");
-	}
 }
 #endif
 
 /*
  * Delay for USEC microsecs
  */
-void
-tty_delay(int usec)
+void tty_delay(int usec)
 {
-  struct timeval tv, ttv;
-  long ts;
-  gettimeofday(&tv, NULL);
-  do
-  {
-    (void)gettimeofday(&ttv, NULL);
-    ts = 1000000l * (ttv.tv_sec - tv.tv_sec) + (ttv.tv_usec - tv.tv_usec);
-  } while (ts < usec && !tty_break);
+struct timeval tv, ttv;
+long ts;
+
+	gettimeofday(&tv, NULL);
+
+	do	{
+		(void)gettimeofday(&ttv, NULL);
+		ts = 1000000l * (ttv.tv_sec - tv.tv_sec) + (ttv.tv_usec - tv.tv_usec);
+		} while (ts < usec && !tty_break);
 }
 

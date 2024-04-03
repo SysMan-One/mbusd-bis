@@ -41,8 +41,9 @@
 #include "queue.h"
 #include "sig.h"
 #include "util.h"
+
 #ifdef LOG
-#  include "log.h"
+	#include "log.h"
 #endif
 
 extern char logfullname[];
@@ -65,35 +66,41 @@ queue_t queue;
  * Original source file CVS tag:
  * $FreeBSD: src/lib/libc/gen/daemon.c,v 1.3 2000/01/27 23:06:14 jasone Exp $
  */
-int
-daemon(nochdir, noclose)
-  int nochdir, noclose;
+int daemon(int nochdir,
+	   int noclose
+	   )
 {
-  int fd;
+int	fd;
 
-  switch (fork()) {
-    case -1:
-      return (-1);
-    case 0:
-      break;
-    default:
-      _exit(0);
-  }
+	switch (fork())
+		{
+		case -1:
+			return (-1);
 
-  if (setsid() == -1)
-    return (-1);
+		case 0:
+			break;
 
-  if (!nochdir)
-    (void)chdir("/");
+		default:
+			_exit(0);
+		}
 
-  if (!noclose && (fd = open("/dev/null", O_RDWR, 0)) != -1) {
-    (void)dup2(fd, STDIN_FILENO);
-    (void)dup2(fd, STDOUT_FILENO);
-    (void)dup2(fd, STDERR_FILENO);
-    if (fd > 2)
-      (void)close(fd);
-  }
-  return (0);
+	if (setsid() == -1)
+		return (-1);
+
+	if (!nochdir)
+		(void) chdir("/");
+
+	if (!noclose && (fd = open("/dev/null", O_RDWR, 0)) != -1)
+		{
+		(void)dup2(fd, STDIN_FILENO);
+		(void)dup2(fd, STDOUT_FILENO);
+		(void)dup2(fd, STDERR_FILENO);
+
+		if (fd > 2)
+			(void)close(fd);
+		}
+
+	return (0);
 }
 #endif
 
@@ -112,7 +119,7 @@ usage(char *exename)
 #ifdef HAVE_TIOCRS485
    " [-S]"
 #endif
-   "\n"   
+   "\n"
 #ifdef TRXCTL
    "             [-t] [-r] [-y sysfsfile] [-Y sysfsfile]\n"
 #endif
@@ -136,7 +143,7 @@ usage(char *exename)
    "  -m mode    : set serial port mode (default is %s)\n"
 #ifdef HAVE_TIOCRS485
    "  -S         : enable Linux RS-485 support for given serial port device\n"
-#endif   
+#endif
 #ifdef TRXCTL
    "  -t         : enable RTS RS-485 data direction control using RTS, active transmit\n"
    "  -r         : enable RTS RS-485 data direction control using RTS, active receive\n"
@@ -171,262 +178,262 @@ usage(char *exename)
 }
 
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-  int err = 0, rc, err_line;
-  char *exename;
-  char ttyparity;
-  char *end;
-  char *logfilenamevalue;
-  char *logfilename;
+int err = 0, rc, err_line;
+char *exename;
+char ttyparity;
+char *end;
+char *logfilenamevalue;
+char *logfilename;
 
-  sig_init();
+	sig_init();
+	cfg_init();
 
-  cfg_init();
-
-  if ((exename = strrchr(argv[0], '/')) == NULL)
-    exename = argv[0];
-  else
-    exename++;
+	if ((exename = strrchr(argv[0], '/')) == NULL)
+		exename = argv[0];
+	else	exename++;
 
   /* command line argument list parsing */
   while ((rc = getopt(argc, argv,
-               "dh"
+	       "dh"
 #ifdef TRXCTL
-               "ty:Y:"
+	       "ty:Y:"
 #endif
 #ifdef HAVE_TIOCRS485
-               "S"
+	       "S"
 #endif
 #ifdef LOG
-               "v:L:"
+	       "v:L:"
 #endif
-               "p:s:m:A:P:C:N:R:W:T:c:b")) != RC_ERR)
+	       "p:s:m:A:P:C:N:R:W:T:c:b")) != RC_ERR)
   {
     switch (rc)
     {
       case '?':
-        exit(-1);
+	exit(-1);
       case 'd':
-        isdaemon = FALSE;
-        break;
+	isdaemon = FALSE;
+	break;
       case 'c':
-        if ((err_line = cfg_read_file(optarg)) != 0)
-        {
-          if (err_line > 0)
-            printf("%s: can't read config file %s: error at line %d: %s\n",
-                   exename, optarg, err_line, cfg_err);
-          else
-            printf("%s: can't read config file %s: %s\n",
-                   exename, optarg, strerror(errno));
-          exit(-1);
-        }
-        break;
+	if ((err_line = cfg_read_file(optarg)) != 0)
+	{
+	  if (err_line > 0)
+	    printf("%s: can't read config file %s: error at line %d: %s\n",
+		   exename, optarg, err_line, cfg_err);
+	  else
+	    printf("%s: can't read config file %s: %s\n",
+		   exename, optarg, strerror(errno));
+	  exit(-1);
+	}
+	break;
 #ifdef TRXCTL
       case 't':
-        cfg.trxcntl = TRX_RTS_1;
-        break;
+	cfg.trxcntl = TRX_RTS_1;
+	break;
       case 'r':
-        cfg.trxcntl = TRX_RTS_0;
-        break;
+	cfg.trxcntl = TRX_RTS_0;
+	break;
       case 'y':
-        cfg.trxcntl = TRX_SYSFS_1;
-        strncpy(cfg.trxcntl_file, optarg, INTBUFSIZE);
+	cfg.trxcntl = TRX_SYSFS_1;
+	strncpy(cfg.trxcntl_file, optarg, INTBUFSIZE);
 	      break;
       case 'Y':
-        cfg.trxcntl = TRX_SYSFS_0;
-        strncpy(cfg.trxcntl_file, optarg, INTBUFSIZE);
+	cfg.trxcntl = TRX_SYSFS_0;
+	strncpy(cfg.trxcntl_file, optarg, INTBUFSIZE);
 	      break;
 #endif
 #ifdef HAVE_TIOCRS485
       case 'S':
-        cfg.rs485 = TRUE;
+	cfg.rs485 = TRUE;
 	      break;
 #endif
 #ifdef LOG
       case 'v':
-        cfg.dbglvl = (char)strtol(optarg, NULL, 0);
+	cfg.dbglvl = (char)strtol(optarg, NULL, 0);
 #  ifdef DEBUG
-        if (!(isdigit(*optarg)) || cfg.dbglvl < 0 || cfg.dbglvl > 9)
-        { /* report about invalid log level */
-          printf("%s: -v: invalid loglevel value"
-                 " (%s, must be 0-9)\n", exename, optarg);
+	if (!(isdigit(*optarg)) || cfg.dbglvl < 0 || cfg.dbglvl > 9)
+	{ /* report about invalid log level */
+	  printf("%s: -v: invalid loglevel value"
+		 " (%s, must be 0-9)\n", exename, optarg);
 #  else
-        if (!(isdigit(*optarg)) || cfg.dbglvl < 0 || cfg.dbglvl > 2)
-        { /* report about invalid log level */
-          printf("%s: -v: invalid loglevel value"
-                 " (%s, must be 0-2)\n", exename, optarg);
+	if (!(isdigit(*optarg)) || cfg.dbglvl < 0 || cfg.dbglvl > 2)
+	{ /* report about invalid log level */
+	  printf("%s: -v: invalid loglevel value"
+		 " (%s, must be 0-2)\n", exename, optarg);
 #  endif
-          exit(-1);
-        }
-        break;
+	  exit(-1);
+	}
+	break;
       case 'L':
-        logfilenamevalue = strdup(optarg);
-        logfilename = util_trim(logfilenamevalue);
-        if (!strlen(logfilename))
-        { /* report about empty log file */
-          printf("%s: -L: log file name is empty, exiting...\n", exename);
-          exit(-1);
-        }
-        else if (*logfilename != '/')
-        {
-          if (*logfilename == '-')
-          {
-            /* logging to file disabled */
-            *cfg.logname = '\0';
-          }
-          else
-          { /* concatenate given log file name with default path */
-            strncpy(cfg.logname, LOGPATH, INTBUFSIZE);
-            strncat(cfg.logname, logfilename, INTBUFSIZE - strlen(cfg.logname));
-          }
-        }
-        else strncpy(cfg.logname, logfilename, INTBUFSIZE);
-        free(logfilenamevalue);
-        break;
+	logfilenamevalue = strdup(optarg);
+	logfilename = util_trim(logfilenamevalue);
+	if (!strlen(logfilename))
+	{ /* report about empty log file */
+	  printf("%s: -L: log file name is empty, exiting...\n", exename);
+	  exit(-1);
+	}
+	else if (*logfilename != '/')
+	{
+	  if (*logfilename == '-')
+	  {
+	    /* logging to file disabled */
+	    *cfg.logname = '\0';
+	  }
+	  else
+	  { /* concatenate given log file name with default path */
+	    strncpy(cfg.logname, LOGPATH, INTBUFSIZE);
+	    strncat(cfg.logname, logfilename, INTBUFSIZE - strlen(cfg.logname));
+	  }
+	}
+	else strncpy(cfg.logname, logfilename, INTBUFSIZE);
+	free(logfilenamevalue);
+	break;
 #endif
       case 'p':
-        if (*optarg != '/')
-        { /* concatenate given port name with default
-             path to devices mountpoint */
-          strncpy(cfg.ttyport, "/dev/", INTBUFSIZE);
-          strncat(cfg.ttyport, optarg, INTBUFSIZE - strlen(cfg.ttyport));
-        }
-        else strncpy(cfg.ttyport, optarg, INTBUFSIZE);
-        break;
+	if (*optarg != '/')
+	{ /* concatenate given port name with default
+	     path to devices mountpoint */
+	  strncpy(cfg.ttyport, "/dev/", INTBUFSIZE);
+	  strncat(cfg.ttyport, optarg, INTBUFSIZE - strlen(cfg.ttyport));
+	}
+	else strncpy(cfg.ttyport, optarg, INTBUFSIZE);
+	break;
       case 's':
-        cfg.ttyspeed = strtoul(optarg, &end, 10);
-        if (!cfg.ttyspeed || optarg == end || '\0' != *end)
-        {
-          printf("%s: -s: invalid serial port speed (%s)\n", exename, optarg);
-          exit(-1);
-        }
-        break;
+	cfg.ttyspeed = strtoul(optarg, &end, 10);
+	if (!cfg.ttyspeed || optarg == end || '\0' != *end)
+	{
+	  printf("%s: -s: invalid serial port speed (%s)\n", exename, optarg);
+	  exit(-1);
+	}
+	break;
       case 'm':
-        strncpy(cfg.ttymode, optarg, INTBUFSIZE);
-        /* tty mode sanity checks */
-        if (strlen(cfg.ttymode) != 3)
-        {
-          printf("%s: -m: invalid serial port mode ('%s')\n",
-                 exename, cfg.ttymode);
-          exit(-1);
-        }
-        if (cfg.ttymode[0] != '8')
-        {
-          printf("%s: -m: invalid serial port character size "
-              "(%c, must be 8)\n",
-              exename, cfg.ttymode[0]);
-          exit(-1);
-        }
-        ttyparity = toupper(cfg.ttymode[1]);
-        if (ttyparity != 'N' && ttyparity != 'E' && ttyparity != 'O')
-        {
-          printf("%s: -m: invalid serial port parity "
-              "(%c, must be N, E or O)\n", exename, ttyparity);
-          exit(-1);
-        }
-        if (cfg.ttymode[2] != '1' && cfg.ttymode[2] != '2')
-        {
-          printf("%s: -m: invalid serial port stop bits "
-              "(%c, must be 1 or 2)\n", exename, cfg.ttymode[2]);
-          exit(-1);
-        }
-        break;
+	strncpy(cfg.ttymode, optarg, INTBUFSIZE);
+	/* tty mode sanity checks */
+	if (strlen(cfg.ttymode) != 3)
+	{
+	  printf("%s: -m: invalid serial port mode ('%s')\n",
+		 exename, cfg.ttymode);
+	  exit(-1);
+	}
+	if (cfg.ttymode[0] != '8')
+	{
+	  printf("%s: -m: invalid serial port character size "
+	      "(%c, must be 8)\n",
+	      exename, cfg.ttymode[0]);
+	  exit(-1);
+	}
+	ttyparity = toupper(cfg.ttymode[1]);
+	if (ttyparity != 'N' && ttyparity != 'E' && ttyparity != 'O')
+	{
+	  printf("%s: -m: invalid serial port parity "
+	      "(%c, must be N, E or O)\n", exename, ttyparity);
+	  exit(-1);
+	}
+	if (cfg.ttymode[2] != '1' && cfg.ttymode[2] != '2')
+	{
+	  printf("%s: -m: invalid serial port stop bits "
+	      "(%c, must be 1 or 2)\n", exename, cfg.ttymode[2]);
+	  exit(-1);
+	}
+	break;
       case 'A':
-        strncpy(cfg.serveraddr, optarg, INTBUFSIZE);
-        break;
+	strncpy(cfg.serveraddr, optarg, INTBUFSIZE);
+	break;
       case 'P':
-        cfg.serverport = strtoul(optarg, NULL, 0);
-        break;
+	cfg.serverport = strtoul(optarg, NULL, 0);
+	break;
       case 'C':
-        cfg.maxconn = strtoul(optarg, NULL, 0);
-        if (cfg.maxconn < 1 || cfg.maxconn > MAX_MAXCONN)
-        { /* report about invalid max conn number */
-          printf("%s: -C: invalid maxconn value"
-                 " (%d, must be 1-%d)\n", exename, cfg.maxconn, MAX_MAXCONN);
-          exit(-1);
-        }
-        break;
+	cfg.maxconn = strtoul(optarg, NULL, 0);
+	if (cfg.maxconn < 1 || cfg.maxconn > MAX_MAXCONN)
+	{ /* report about invalid max conn number */
+	  printf("%s: -C: invalid maxconn value"
+		 " (%d, must be 1-%d)\n", exename, cfg.maxconn, MAX_MAXCONN);
+	  exit(-1);
+	}
+	break;
       case 'N':
-        cfg.maxtry = strtoul(optarg, NULL, 0);
-        if (cfg.maxtry > MAX_MAXTRY)
-        { /* report about invalid max try number */
-          printf("%s: -N: invalid maxtry value"
-                 " (%d, must be 0-%d)\n", exename, cfg.maxtry, MAX_MAXTRY);
-          exit(-1);
-        }
-        break;
+	cfg.maxtry = strtoul(optarg, NULL, 0);
+	if (cfg.maxtry > MAX_MAXTRY)
+	{ /* report about invalid max try number */
+	  printf("%s: -N: invalid maxtry value"
+		 " (%d, must be 0-%d)\n", exename, cfg.maxtry, MAX_MAXTRY);
+	  exit(-1);
+	}
+	break;
       case 'R':
-        cfg.rqstpause = strtoul(optarg, NULL, 0);
-        if (cfg.rqstpause < 1 || cfg.rqstpause > MAX_RQSTPAUSE)
-        { /* report about invalid rqst pause value */
-          printf("%s: -R: invalid inter-request pause value"
-                 " (%lu, must be 1-%d)\n", exename, cfg.rqstpause, MAX_RQSTPAUSE);
-          exit(-1);
-        }
-        break;
+	cfg.rqstpause = strtoul(optarg, NULL, 0);
+	if (cfg.rqstpause < 1 || cfg.rqstpause > MAX_RQSTPAUSE)
+	{ /* report about invalid rqst pause value */
+	  printf("%s: -R: invalid inter-request pause value"
+		 " (%lu, must be 1-%d)\n", exename, cfg.rqstpause, MAX_RQSTPAUSE);
+	  exit(-1);
+	}
+	break;
       case 'W':
-        cfg.respwait = strtoul(optarg, NULL, 0);
-        if (cfg.respwait < 1 || cfg.respwait > MAX_RESPWAIT)
-        { /* report about invalid resp wait value */
-          printf("%s: -W: invalid response wait time value"
-                 " (%lu, must be 1-%d)\n", exename, cfg.respwait, MAX_RESPWAIT);
-          exit(-1);
-        }
-        break;
+	cfg.respwait = strtoul(optarg, NULL, 0);
+	if (cfg.respwait < 1 || cfg.respwait > MAX_RESPWAIT)
+	{ /* report about invalid resp wait value */
+	  printf("%s: -W: invalid response wait time value"
+		 " (%lu, must be 1-%d)\n", exename, cfg.respwait, MAX_RESPWAIT);
+	  exit(-1);
+	}
+	break;
       case 'T':
-        cfg.conntimeout = strtoul(optarg, NULL, 0);
-        if (cfg.conntimeout > MAX_CONNTIMEOUT)
-        { /* report about invalid conn timeout value */
-          printf("%s: -T: invalid conn timeout value"
-                 " (%d, must be 1-%d)\n", exename, cfg.conntimeout, MAX_CONNTIMEOUT);
-          exit(-1);
-        }
-        break;
+	cfg.conntimeout = strtoul(optarg, NULL, 0);
+	if (cfg.conntimeout > MAX_CONNTIMEOUT)
+	{ /* report about invalid conn timeout value */
+	  printf("%s: -T: invalid conn timeout value"
+		 " (%d, must be 1-%d)\n", exename, cfg.conntimeout, MAX_CONNTIMEOUT);
+	  exit(-1);
+	}
+	break;
       case 'b':
-        cfg.replyonbroadcast = 1;
-        break;
+	cfg.replyonbroadcast = 1;
+	break;
       case 'h':
-        usage(exename);
-        break;
+	usage(exename);
+	break;
     }
   }
 
 #ifdef LOG
-  if (log_init(cfg.logname) != RC_OK)
-  {
-    printf("%s: can't open logfile '%s' (%s), exiting...\n",
-           exename,
-           logfullname[0] ? logfullname : "no log name was given",
-           strerror(errno));
-    exit(-1);
-  }
-  logw(2, "%s-%s started...", PACKAGE, VERSION);
+	if (log_init(cfg.logname) != RC_OK)
+		{
+		printf("%s: can't open logfile '%s' (%s), exiting...\n", exename,
+		logfullname[0] ? logfullname : "no log name was given", strerror(errno));
+		exit(-1);
+		}
+
+	logw(2, "%s-%s started...", PACKAGE, VERSION);
 #endif
 
-  if (conn_init())
-  {
+	if (conn_init())
+		{
 #ifdef LOG
-    err = errno;
-    logw(2, "conn_init() failed, exiting...");
+		err = errno;
+		logw(2, "conn_init() failed, exiting...");
 #endif
-    exit(err);
-  }
+		exit(err);
+		}
 
-  /* go or not to daemon mode? */
-  if (isdaemon && (rc = daemon(TRUE, FALSE)))
-  {
+	/* go or not to daemon mode? */
+	if (isdaemon && (rc = daemon(TRUE, FALSE)))
+		{
 #ifdef LOG
-    logw(0, "Can't be daemonized (%s), exiting...", strerror(errno));
+		logw(0, "Can't be daemonized (%s), exiting...", strerror(errno));
 #endif
-    exit(rc);
-  }
+		exit(rc);
+		}
 
-  conn_loop();
-  err = errno;
+
+	conn_loop();
+	err = errno;
+
+
+
 #ifdef LOG
-  logw(2, "%s-%s exited...", PACKAGE, VERSION);
+	logw(2, "%s-%s exited...", PACKAGE, VERSION);
 #endif
-  return (err);
+	return (err);
 }
